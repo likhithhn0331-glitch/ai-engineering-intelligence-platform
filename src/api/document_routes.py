@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from src.exceptions.document_exceptions import DocumentNotFoundError, InvalidDocumentError
 from src.models.pydantic_model import DocumentCreate, DocumentResponse
@@ -17,32 +17,26 @@ def get_document_service() -> DocumentService:
 
 @router.post("/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def create_document(document: DocumentCreate, service: DocumentService = Depends(get_document_service)):
-    try:
-        created_document = service.create_document(document.model_dump())
-        return DocumentResponse(
-            id=created_document.id,
-            name=created_document.name,
-            document_type=created_document.document_type,
-            version=created_document.version,
-            status=created_document.status,
-        )
-    except InvalidDocumentError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    created_document = service.create_document(document.model_dump())
+    return DocumentResponse(
+        id=created_document.id,
+        name=created_document.name,
+        document_type=created_document.document_type,
+        version=created_document.version,
+        status=created_document.status,
+    )
 
 
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
 async def get_document(document_id: str, service: DocumentService = Depends(get_document_service)):
-    try:
-        document = service.get_document(document_id)
-        return DocumentResponse(
-            id=document.id,
-            name=document.name,
-            document_type=document.document_type,
-            version=document.version,
-            status=document.status,
-        )
-    except DocumentNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    document = service.get_document(document_id)
+    return DocumentResponse(
+        id=document.id,
+        name=document.name,
+        document_type=document.document_type,
+        version=document.version,
+        status=document.status,
+    )
 
 
 @router.get("/documents", response_model=list[DocumentResponse])
@@ -66,23 +60,17 @@ async def update_document(
     updated_data: dict,
     service: DocumentService = Depends(get_document_service),
 ):
-    try:
-        document = service.update_document(document_id, updated_data)
-        return DocumentResponse(
-            id=document.id,
-            name=document.name,
-            document_type=document.document_type,
-            version=document.version,
-            status=document.status,
-        )
-    except DocumentNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    document = service.update_document(document_id, updated_data)
+    return DocumentResponse(
+        id=document.id,
+        name=document.name,
+        document_type=document.document_type,
+        version=document.version,
+        status=document.status,
+    )
 
 
 @router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(document_id: str, service: DocumentService = Depends(get_document_service)):
-    try:
-        service.delete_document(document_id)
-    except DocumentNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    service.delete_document(document_id)
     return None

@@ -30,13 +30,24 @@ Storage
 
 ## Project Structure
 
-- `src/main.py` – FastAPI app entry point and root/health routes
-- `src/api/document_routes.py` – HTTP endpoints for document operations
+- `src/main.py` – FastAPI app entry point, global exception handlers, and root/health routes
+- `src/api/document_routes.py` – HTTP endpoints for document operations (exceptions now bubble to global handlers)
 - `src/services/document_service.py` – Business logic, validation, and orchestration
 - `src/repositories/document_repository.py` – In-memory persistence layer
 - `src/models/pydantic_model.py` – Request/response schemas
 - `src/data_classes/document_class.py` – Document domain model
 - `src/exceptions/document_exceptions.py` – Custom exceptions
+
+## Exception handling
+
+To ensure Python exceptions map to meaningful HTTP responses, centralized FastAPI exception handlers were added in `src/main.py`:
+
+- `DocumentNotFoundError` → HTTP 404 with JSON {"detail": "..."}
+- `InvalidDocumentError` → HTTP 400 with JSON {"detail": "..."}
+- `fastapi.exceptions.RequestValidationError` → HTTP 422 with validation details
+- Generic `Exception` → HTTP 500 with JSON {"detail": "Internal server error"} (and server-side logging)
+
+Per-route try/except blocks that converted application exceptions into HTTPExceptions were removed from `src/api/document_routes.py` so service-layer exceptions can bubble up to the global handlers. This preserves clear separation between application errors and API error mapping.
 
 ## Document API
 
@@ -80,7 +91,26 @@ Response:
 - `PUT /documents/{document_id}` – update a document
 - `DELETE /documents/{document_id}` – delete a document
 
+## Testing
+
+A small pytest suite was added under `tests/` to verify the API contract and exception behavior. Tests included:
+
+- GET / → 200
+- GET /health → 200 and `{"status": "healthy"}`
+- POST /documents → 201 and created document returned
+- Invalid POST /documents (missing fields) → 422 validation error
+- GET /documents/{id} for a missing document → 404 with descriptive message
+
+Run tests:
+
+```bash
+python -m pytest -q
+```
+
+A test run report is saved at `docs/pytest_reports/report_1.md` which contains environment details, pytest output, and notes.
+
 ## Notes
 
-- The repository layer currently uses an in-memory dictionary for persistence.
-- This is a foundational implementation for the platform architecture and can be extended to a database-backed repository later.
+- The repository layer currently uses an in-memory dictionary for persistence and is reset during tests via a fixture.
+- Warnings observed during testing are related to third-party deprecations (starlette/testclient and HTTP_422 naming). Consider upgrading dependencies in the future.
+

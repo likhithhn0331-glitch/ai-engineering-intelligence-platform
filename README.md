@@ -93,13 +93,17 @@ Response:
 
 ## Testing
 
-A small pytest suite was added under `tests/` to verify the API contract and exception behavior. Tests included:
+A pytest suite under `tests/` verifies the API contract, layered behavior, and exception handling. The Day 2 suite covers:
 
 - GET / → 200
 - GET /health → 200 and `{"status": "healthy"}`
 - POST /documents → 201 and created document returned
 - Invalid POST /documents (missing fields) → 422 validation error
+- GET /documents → 200 and list of documents returned
+- GET /documents/{id} for an existing document → 200 and resource returned
 - GET /documents/{id} for a missing document → 404 with descriptive message
+- DELETE /documents/{id} for an existing document → 204 and removal succeeds
+- DELETE /documents/{id} for a missing document → 404 with descriptive message
 
 Run tests:
 
@@ -108,6 +112,18 @@ python -m pytest -q
 ```
 
 A test run report is saved at `docs/pytest_reports/report_1.md` which contains environment details, pytest output, and notes.
+
+## Architecture notes for Day 2
+
+The Day 2 work confirms the architectural boundary:
+
+- HTTP routes handle request/response and status codes
+- Pydantic models define the API contract
+- `DocumentService` owns document business behavior and validation
+- `DocumentRepository` owns in-memory storage operations
+- Global exception handlers translate domain failures to HTTP responses
+
+This keeps the API layer thin and ensures retrieval, listing, and deletion all pass through the service layer instead of bypassing it.
 
 ## Notes
 

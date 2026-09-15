@@ -7,13 +7,6 @@ from src.repositories.document_repository import DocumentRepository
 from src.services.document_service import DocumentService
 
 
-@pytest.fixture(autouse=True)
-def reset_repository():
-    # Recreate repository and service so tests are isolated
-    document_routes.repository = DocumentRepository()
-    document_routes.service = DocumentService(document_routes.repository)
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
@@ -39,6 +32,23 @@ def test_post_documents_success(client):
     assert data["document_type"] == "requirement"
     assert data["version"] == "1.0"
     assert data["id"].startswith("doc-")
+    assert data["status"] == "created"
+
+
+def test_get_document_returns_created_document(client):
+    payload = {"name": "Retrieve Doc", "document_type": "requirement", "version": "1.0"}
+    create_resp = client.post("/documents", json=payload)
+    assert create_resp.status_code == 201
+    document_id = create_resp.json()["id"]
+
+    resp = client.get(f"/documents/{document_id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == document_id
+    assert data["name"] == "Retrieve Doc"
+    assert data["document_type"] == "requirement"
+    assert data["version"] == "1.0"
+    assert data["status"] == "created"
 
 
 def test_list_documents_returns_all_documents(client):
@@ -59,19 +69,39 @@ def test_list_documents_returns_all_documents(client):
     assert all(doc["status"] == "created" for doc in data)
 
 
-def test_get_document_returns_created_document(client):
-    payload = {"name": "Retrieve Doc", "document_type": "requirement", "version": "1.0"}
+def test_update_document_updates_document(client):
+    payload = {"name": "Original Doc", "document_type": "requirement", "version": "1.0"}
     create_resp = client.post("/documents", json=payload)
     assert create_resp.status_code == 201
     document_id = create_resp.json()["id"]
 
-    resp = client.get(f"/documents/{document_id}")
+    updated_payload = {"name": "Updated Doc", "document_type": "design", "version": "2.0"}
+    resp = client.put(f"/documents/{document_id}", json=updated_payload)
     assert resp.status_code == 200
     data = resp.json()
     assert data["id"] == document_id
-    assert data["name"] == "Retrieve Doc"
-    assert data["document_type"] == "requirement"
-    assert data["version"] == "1.0"
+    assert data["name"] == "Updated Doc"
+    assert data["document_type"] == "design"
+    assert data["version"] == "2.0"
+
+    follow_up = client.get(f"/documents/{document_id}")
+    assert follow_up.status_code == 200
+    assert follow_up.json()["name"] == "Updated Doc"
+
+
+def test_create_then_get_returns_same_document(client):
+    payload = {"name": "Roundtrip Doc", "document_type": "test", "version": "7.3"}
+    create_resp = client.post("/documents", json=payload)
+    assert create_resp.status_code == 201
+    document_id = create_resp.json()["id"]
+
+    get_resp = client.get(f"/documents/{document_id}")
+    assert get_resp.status_code == 200
+    data = get_resp.json()
+    assert data["id"] == document_id
+    assert data["name"] == payload["name"]
+    assert data["document_type"] == payload["document_type"]
+    assert data["version"] == payload["version"]
     assert data["status"] == "created"
 
 

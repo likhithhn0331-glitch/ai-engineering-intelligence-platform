@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS documents (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    document_type VARCHAR(255) NOT NULL,
+    version VARCHAR(255) NOT NULL,
+    status VARCHAR(255) NOT NULL DEFAULT 'created',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

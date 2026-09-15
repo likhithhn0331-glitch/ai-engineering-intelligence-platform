@@ -4,11 +4,13 @@ from fastapi.exceptions import RequestValidationError
 import logging
 
 from src.api.document_routes import router as document_router
+from src.database import initialize_database
 from src.exceptions.document_exceptions import DocumentNotFoundError, InvalidDocumentError
 
 logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="AI Engineering Intelligence Platform")
+initialize_database()
 
 
 @app.exception_handler(DocumentNotFoundError)

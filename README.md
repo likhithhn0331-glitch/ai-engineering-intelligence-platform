@@ -221,9 +221,54 @@ Run the PostgreSQL integration subset:
 
 - `docs/pytest_reports/report_1.md` – earlier API contract report
 - `docs/pytest_reports/report_2.md` – PostgreSQL integration report
+- `docs/pytest_reports/report_deliberate_failures.md` – deliberate database failure validation report
+
+## Additional project documentation
+
+The project includes focused engineering notes and verification artifacts covering the PostgreSQL implementation and interview-level understanding:
+
+- `docs/notes/postgresql-deep-revision.md` – core PostgreSQL concepts and schema rationale
+- `docs/notes/deliberate-database-failures.md` – duplicate key, missing field, invalid data, and not-found failure analysis
+- `docs/notes/database-transactions-acid.md` – transaction flow and ACID guarantees
+- `docs/notes/connection-lifecycle.md` – open, yield, rollback, close resource lifecycle
+- `docs/notes/migration-understanding.md` – migration discipline and schema versioning
+- `docs/notes/persistence-verification.md` – request tracing and persistence proof workflow
+- `docs/actvity_tracker/day5.md` – Day 5 PostgreSQL implementation summary
+- `docs/actvity_tracker/day6.md` – persistence verification and interview-critical validation steps
+
+## Current architecture status
+
+The project is now structured as:
+
+FastAPI
+↓
+Service layer
+↓
+Repository layer
+↓
+Database connection boundary
+↓
+PostgreSQL
+
+The persistence layer is no longer dictionary-based for the main path. The repository still preserves the same conceptual API contract while using SQL operations for create, list, get by id, update, and delete.
+
+## Validation summary
+
+The PostgreSQL-backed path is validated through:
+
+- environment-based database configuration
+- migration-driven schema setup
+- dedicated connection lifecycle management
+- repository CRUD SQL behavior
+- API contract tests
+- PostgreSQL integration tests
+- deliberate failure tests for database-level validation and 404 behavior
+
+This project currently reflects the actual engineering work that was completed and documented rather than a hypothetical future state.
 
 ## Notes
 
 - The design remains intentionally conservative and avoids over-engineering beyond the current project need.
 - Database-level constraints such as `CHECK` and separate test database provisioning are not expanded beyond the current scope, but the project has the migration, connection, and repository structure needed for PostgreSQL-backed persistence.
 - Warnings observed during testing are related to third-party deprecations in the FastAPI/Starlette stack and do not block the application behavior.
+- The `.env` file remains local-only and is intentionally not committed to source control.

@@ -5,7 +5,7 @@ import logging
 
 from src.api.document_routes import router as document_router
 from src.database import initialize_database
-from src.exceptions.document_exceptions import DocumentNotFoundError, InvalidDocumentError
+from src.exceptions.document_exceptions import DatabaseUnavailableError, DocumentNotFoundError, InvalidDocumentError
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -21,6 +21,11 @@ async def document_not_found_handler(request: Request, exc: DocumentNotFoundErro
 @app.exception_handler(InvalidDocumentError)
 async def invalid_document_handler(request: Request, exc: InvalidDocumentError):
     return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": exc.message})
+
+
+@app.exception_handler(DatabaseUnavailableError)
+async def database_unavailable_handler(request: Request, exc: DatabaseUnavailableError):
+    return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"detail": exc.message})
 
 
 @app.exception_handler(RequestValidationError)

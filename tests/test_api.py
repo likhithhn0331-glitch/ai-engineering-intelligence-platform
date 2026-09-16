@@ -3,6 +3,7 @@ import pytest
 
 from src.main import app
 import src.api.document_routes as document_routes
+from src.exceptions.document_exceptions import DatabaseUnavailableError
 from src.repositories.document_repository import DocumentRepository
 from src.services.document_service import DocumentService
 
@@ -138,3 +139,16 @@ def test_delete_missing_document_returns_404(client):
     resp = client.delete("/documents/nonexistent-id")
     assert resp.status_code == 404
     assert resp.json().get("detail") == "Document with ID 'nonexistent-id' not found."
+
+
+def test_database_unavailable_returns_503(client, monkeypatch):
+    def raise_db_unavailable(*args, **kwargs):
+        raise DatabaseUnavailableError("Database is unavailable.")
+
+    monkeypatch.setattr(document_routes.service, "create_document", raise_db_unavailable)
+
+    payload = {"name": "Unavailable DB", "document_type": "requirement", "version": "1.0"}
+    resp = client.post("/documents", json=payload)
+
+    assert resp.status_code == 503
+    assert resp.json().get("detail") == "Database is unavailable."

@@ -4,6 +4,8 @@ from typing import Iterator
 
 from dotenv import load_dotenv
 
+from src.exceptions.document_exceptions import DatabaseUnavailableError
+
 load_dotenv()
 
 try:
@@ -44,11 +46,33 @@ def database_connection() -> Iterator[object]:
     if psycopg is None:
         raise DatabaseConfigurationError("psycopg is required for PostgreSQL access.")
 
-    connection = psycopg.connect(get_database_config(), autocommit=False)
+    try:
+        connection = psycopg.connect(get_database_config(), autocommit=False)
+    except Exception as exc:
+        raise DatabaseUnavailableError("Database is unavailable.") from exc
+
     try:
         yield connection
-    except Exception:
-        connection.rollback()
+        # Commit when the caller block exits normally. This centralizes
+        # transaction lifecycle and ensures callers don't forget to commit.
+        try:
+            connection.commit()
+        except Exception as exc:
+            # If commit fails, attempt rollback to leave the DB in a clean state
+            try:
+                connection.rollback()
+            except Exception:
+                pass
+            if isinstance(exc, psycopg.Error):
+                raise DatabaseUnavailableError("Database is unavailable.") from exc
+            raise
+    except Exception as exc:
+        try:
+            connection.rollback()
+        except Exception:
+            pass
+        if isinstance(exc, psycopg.Error):
+            raise DatabaseUnavailableError("Database is unavailable.") from exc
         raise
     finally:
         connection.close()

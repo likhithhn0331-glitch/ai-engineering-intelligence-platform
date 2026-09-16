@@ -13,3 +13,11 @@ class InvalidDocumentError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
+
+
+class DatabaseUnavailableError(Exception):
+    """Raised when the configured PostgreSQL database is unavailable."""
+
+    def __init__(self, message="Database is unavailable."):
+        self.message = message
+        super().__init__(self.message)

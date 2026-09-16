@@ -2,6 +2,31 @@
 
 AI Engineering Change and Test Intelligence Platform.
 
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/) [![License](https://img.shields.io/badge/license-MIT-brightgreen)]()
+
+Last updated: 2026-09-16
+
+## Quickstart
+
+Installation
+1. Create and activate a virtual environment:
+   .\.venv\Scripts\activate
+2. Install dependencies:
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+3. Copy and edit environment file:
+   copy .env.example .env
+   (set DATABASE_URL in .env)
+4. Run migrations:
+   .\.venv\Scripts\python.exe src\database.py
+
+Run locally
+
+.\.venv\Scripts\python.exe -m uvicorn src.main:app --reload
+
+Usage example
+
+curl -X POST http://localhost:8000/documents -H "Content-Type: application/json" -d "{\"name\":\"engine-requirement\",\"document_type\":\"requirement\",\"version\":\"1.0\"}"
+
 ## Architecture
 
 The application follows a layered architecture for document management:

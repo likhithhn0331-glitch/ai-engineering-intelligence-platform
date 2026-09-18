@@ -59,5 +59,22 @@ class DocumentService:
             raise DocumentNotFoundError(document_id)
         return True
 
-    def list_documents(self):
-        return self.document_repository.list_documents()
+    def list_documents(
+        self,
+        document_type=None,
+        status=None,
+        name_contains=None,
+        limit=None,
+        offset=0,
+        sort_by="created_at",
+        sort_order="asc",
+    ):
+        return self.document_repository.list_documents(
+            document_type=document_type,
+            status=status,
+            name_contains=name_contains,
+            limit=limit,
+            offset=offset,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )

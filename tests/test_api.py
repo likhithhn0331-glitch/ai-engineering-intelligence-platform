@@ -70,6 +70,87 @@ def test_list_documents_returns_all_documents(client):
     assert all(doc["status"] == "created" for doc in data)
 
 
+def test_list_documents_supports_query_parameters(client):
+    for name, document_type in [
+        ("Design Spec", "design"),
+        ("Requirement One", "requirement"),
+        ("Requirement Two", "requirement"),
+    ]:
+        response = client.post(
+            "/documents",
+            json={"name": name, "document_type": document_type, "version": "1.0"},
+        )
+        assert response.status_code == 201
+
+    response = client.get(
+        "/documents",
+        params={"document_type": "requirement", "sort_by": "name", "limit": 1},
+    )
+
+    assert response.status_code == 200
+    assert [document["name"] for document in response.json()] == ["Requirement One"]
+
+
+def test_default_pagination_returns_all_created_documents(client):
+    for name in ["Default One", "Default Two"]:
+        response = client.post(
+            "/documents",
+            json={"name": name, "document_type": "requirement", "version": "1.0"},
+        )
+        assert response.status_code == 201
+
+    response = client.get("/documents")
+
+    assert response.status_code == 200
+    assert [document["name"] for document in response.json()] == ["Default One", "Default Two"]
+
+
+def test_explicit_limit_bounds_results(client):
+    for index in range(3):
+        response = client.post(
+            "/documents",
+            json={
+                "name": f"Limit Document {index}",
+                "document_type": "requirement",
+                "version": "1.0",
+            },
+        )
+        assert response.status_code == 201
+
+    response = client.get("/documents", params={"limit": 2})
+
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+
+def test_offset_returns_expected_page(client):
+    for index in range(4):
+        response = client.post(
+            "/documents",
+            json={
+                "name": f"Page Document {index}",
+                "document_type": "requirement",
+                "version": "1.0",
+            },
+        )
+        assert response.status_code == 201
+
+    response = client.get("/documents", params={"limit": 2, "offset": 2})
+
+    assert response.status_code == 200
+    assert [document["name"] for document in response.json()] == [
+        "Page Document 2",
+        "Page Document 3",
+    ]
+
+
+@pytest.mark.parametrize("query", [{"limit": 0}, {"offset": -1}])
+def test_invalid_pagination_values_return_validation_error(client, query):
+    response = client.get("/documents", params=query)
+
+    assert response.status_code == 422
+
+
 def test_update_document_updates_document(client):
     payload = {"name": "Original Doc", "document_type": "requirement", "version": "1.0"}
     create_resp = client.post("/documents", json=payload)

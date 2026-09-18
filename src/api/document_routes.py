@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, status
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Query, status
 
 from src.exceptions.document_exceptions import DocumentNotFoundError, InvalidDocumentError
 from src.models.pydantic_model import DocumentCreate, DocumentResponse
@@ -40,8 +42,25 @@ async def get_document(document_id: str, service: DocumentService = Depends(get_
 
 
 @router.get("/documents", response_model=list[DocumentResponse])
-async def list_documents(service: DocumentService = Depends(get_document_service)):
-    documents = service.list_documents()
+async def list_documents(
+    document_type: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    name_contains: str | None = Query(default=None, min_length=1),
+    limit: int | None = Query(default=None, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    sort_by: Literal["id", "name", "document_type", "version", "status", "created_at"] = "created_at",
+    sort_order: Literal["asc", "desc"] = "asc",
+    service: DocumentService = Depends(get_document_service),
+):
+    documents = service.list_documents(
+        document_type=document_type,
+        status=status_filter,
+        name_contains=name_contains,
+        limit=limit,
+        offset=offset,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
     return [
         DocumentResponse(
             id=document.id,

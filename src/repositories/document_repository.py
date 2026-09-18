@@ -79,19 +79,80 @@ class DocumentRepository:
             return True
         return False
 
-    def list_documents(self):
+    def list_documents(
+        self,
+        document_type=None,
+        status=None,
+        name_contains=None,
+        limit=None,
+        offset=0,
+        sort_by="created_at",
+        sort_order="asc",
+    ):
         if self.use_postgres:
             try:
+                sort_columns = {
+                    "id": "id",
+                    "name": "name",
+                    "document_type": "document_type",
+                    "version": "version",
+                    "status": "status",
+                    "created_at": "created_at",
+                }
+                if sort_by not in sort_columns:
+                    raise ValueError(f"Unsupported sort field: {sort_by}")
+                if sort_order not in {"asc", "desc"}:
+                    raise ValueError(f"Unsupported sort order: {sort_order}")
+
+                conditions = []
+                values = []
+                if document_type is not None:
+                    conditions.append("document_type = %s")
+                    values.append(document_type)
+                if status is not None:
+                    conditions.append("status = %s")
+                    values.append(status)
+                if name_contains is not None:
+                    conditions.append("name ILIKE %s")
+                    values.append(f"%{name_contains}%")
+
+                where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+                direction = sort_order.upper()
+                query = (
+                    "SELECT id, name, document_type, version, status "
+                    f"FROM documents{where_clause} "
+                    f"ORDER BY {sort_columns[sort_by]} {direction}, id ASC"
+                )
+                if limit is not None:
+                    query += " LIMIT %s OFFSET %s"
+                    values.extend([limit, offset])
+                elif offset:
+                    query += " OFFSET %s"
+                    values.append(offset)
+
                 with database_connection() as connection:
                     with connection.cursor() as cursor:
-                        cursor.execute(
-                            "SELECT id, name, document_type, version, status FROM documents ORDER BY created_at ASC, id ASC"
-                        )
+                        cursor.execute(query, tuple(values))
                         return [self._row_to_document(row) for row in cursor.fetchall()]
             except (DatabaseConfigurationError, RuntimeError):
                 self.use_postgres = False
 
-        return list(self.documents.values())
+        documents = list(self.documents.values())
+        if document_type is not None:
+            documents = [doc for doc in documents if doc.document_type == document_type]
+        if status is not None:
+            documents = [doc for doc in documents if doc.status == status]
+        if name_contains is not None:
+            needle = name_contains.casefold()
+            documents = [doc for doc in documents if needle in doc.name.casefold()]
+        if sort_by != "created_at":
+            if sort_by not in {"id", "name", "document_type", "version", "status"}:
+                raise ValueError(f"Unsupported sort field: {sort_by}")
+            documents.sort(key=lambda doc: getattr(doc, sort_by), reverse=sort_order == "desc")
+        documents = documents[offset:]
+        if limit is not None:
+            documents = documents[:limit]
+        return documents
 
     def update_document(self, document_id, updated_data):
         if self.use_postgres:

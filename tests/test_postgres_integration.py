@@ -111,6 +111,78 @@ def test_postgres_list_and_update_document_end_to_end(client):
     assert get_resp.json()["name"] == "PG One Updated"
 
 
+def test_postgres_query_filters_sorts_and_paginates_documents(client):
+    documents = [
+        {"name": "Architecture Spec", "document_type": "design", "version": "2.0"},
+        {"name": "API Requirement", "document_type": "requirement", "version": "1.0"},
+        {"name": "Database Requirement", "document_type": "requirement", "version": "1.1"},
+    ]
+    for payload in documents:
+        response = client.post("/documents", json=payload)
+        assert response.status_code == 201
+
+    response = client.get(
+        "/documents",
+        params={
+            "document_type": "requirement",
+            "name_contains": "requirement",
+            "sort_by": "name",
+            "sort_order": "desc",
+            "limit": 1,
+            "offset": 1,
+        },
+    )
+
+    assert response.status_code == 200
+    assert [document["name"] for document in response.json()] == ["API Requirement"]
+
+
+def test_postgres_created_at_desc_order_is_observable(client):
+    created_ids = {}
+    for name in ["Older Requirement", "Newest Requirement", "Middle Requirement"]:
+        response = client.post(
+            "/documents",
+            json={"name": name, "document_type": "requirement", "version": "1.0"},
+        )
+        assert response.status_code == 201
+        created_ids[name] = response.json()["id"]
+
+    database_url = get_database_url()
+    with psycopg.connect(database_url, autocommit=True) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE documents
+                SET created_at = CASE id
+                    WHEN %s THEN TIMESTAMPTZ '2026-01-01 00:00:00+00'
+                    WHEN %s THEN TIMESTAMPTZ '2026-01-03 00:00:00+00'
+                    WHEN %s THEN TIMESTAMPTZ '2026-01-02 00:00:00+00'
+                END
+                WHERE id IN (%s, %s, %s)
+                """,
+                (
+                    created_ids["Older Requirement"],
+                    created_ids["Newest Requirement"],
+                    created_ids["Middle Requirement"],
+                    created_ids["Older Requirement"],
+                    created_ids["Newest Requirement"],
+                    created_ids["Middle Requirement"],
+                ),
+            )
+
+    response = client.get(
+        "/documents",
+        params={"sort_by": "created_at", "sort_order": "desc"},
+    )
+
+    assert response.status_code == 200
+    assert [document["name"] for document in response.json()] == [
+        "Newest Requirement",
+        "Middle Requirement",
+        "Older Requirement",
+    ]
+
+
 def test_postgres_delete_document_end_to_end(client):
     payload = {"name": "PG Delete Me", "document_type": "requirement", "version": "1.0"}
     create_resp = client.post("/documents", json=payload)
